@@ -1,0 +1,61 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+local hitboxSize = Vector3.new(10, 10, 10)
+
+local function expandHitbox(character)
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.Size = hitboxSize
+        hrp.Transparency = 0.5
+        hrp.CanCollide = false
+    end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer and player.Character then
+        expandHitbox(player.Character)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if player ~= LocalPlayer then
+            expandHitbox(character)
+        end
+    end)
+end)
+
+local function createPopup()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "CreditsPopup"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local popup = Instance.new("TextLabel")
+    popup.Size = UDim2.new(0, 300, 0, 50)
+    popup.Position = UDim2.new(1, 10, 0.8, 0)
+    popup.AnchorPoint = Vector2.new(1, 0)
+    popup.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    popup.TextColor3 = Color3.fromRGB(255, 255, 255)
+    popup.TextScaled = true
+    popup.Text = "silent aim by agent duck xd"
+    popup.BorderSizePixel = 0
+    popup.Font = Enum.Font.GothamBold
+    popup.Parent = screenGui
+popup.BackgroundTransparency = 0.2
+    local tweenIn = TweenService:Create(popup, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(1, -10, 0.8, 0)
+    })
+    tweenIn:Play()
+    task.wait(4)
+    local tweenOut = TweenService:Create(popup, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Position = UDim2.new(1, 10, 0.8, 0)
+    })
+    tweenOut:Play()
+tweenOut.Completed:Connect(function()
+        screenGui:Destroy()
+    end)
+end
+createPopup()
