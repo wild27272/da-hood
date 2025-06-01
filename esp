@@ -1,0 +1,196 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local ESPs = {}
+
+local BOX_THICKNESS_NORMAL = 1
+local BOX_THICKNESS_HIGHLIGHT = 3
+local BOX_HIGHLIGHT_COLOR = Color3.fromRGB(255, 255, 255)
+
+local mouse = LocalPlayer:GetMouse()
+local hoveredPlayer = nil
+
+-- Utility to create ESP drawings for a player
+local function createESP(player)
+    local esp = {}
+
+    esp.BoxOutline = Drawing.new("Square")
+    esp.BoxOutline.Thickness = BOX_THICKNESS_HIGHLIGHT
+    esp.BoxOutline.Color = Color3.new(0, 0, 0)
+    esp.BoxOutline.Filled = false
+    esp.BoxOutline.Visible = false
+
+    esp.Box = Drawing.new("Square")
+    esp.Box.Thickness = BOX_THICKNESS_NORMAL
+    esp.Box.Color = Color3.fromRGB(255, 255, 255)
+    esp.Box.Filled = false
+    esp.Box.Visible = false
+
+    esp.HealthBar = Drawing.new("Line")
+    esp.HealthBar.Thickness = 4
+    esp.HealthBar.Color = Color3.fromRGB(0, 255, 0)
+    esp.HealthBar.Visible = false
+
+    esp.NameText = Drawing.new("Text")
+    esp.NameText.Center = true
+    esp.NameText.Outline = true
+    esp.NameText.OutlineColor = Color3.new(0, 0, 0)
+    esp.NameText.Color = Color3.fromRGB(255, 255, 255)
+    esp.NameText.Size = 14
+    esp.NameText.Visible = false
+    esp.NameText.Font = 2
+
+    ESPs[player] = esp
+end
+
+-- Remove ESP drawings when player leaves or dies
+local function removeESP(player)
+    local esp = ESPs[player]
+    if esp then
+        esp.Box:Remove()
+        esp.BoxOutline:Remove()
+        esp.HealthBar:Remove()
+        esp.NameText:Remove()
+        ESPs[player] = nil
+    end
+end
+
+-- Check if character is valid for ESP (has humanoid & root part)
+local function isValidCharacter(char)
+    return char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")) and char:FindFirstChild("Humanoid")
+end
+
+-- Rainbow RGB color based on time and player userId for unique color cycling
+local function rainbowColor(t)
+    local hue = (tick()*100 + t*40) % 360 / 360
+    return Color3.fromHSV(hue, 1, 1)
+end
+
+-- Check if mouse is inside a rectangle with optional padding (for hover detection)
+local function isMouseOverBox(mousePos, boxPos, boxSize, padding)
+    padding = padding or 0
+    return mousePos.X >= boxPos.X - padding and mousePos.X <= boxPos.X + boxSize.X + padding
+       and mousePos.Y >= boxPos.Y - padding and mousePos.Y <= boxPos.Y + boxSize.Y + padding
+end
+
+-- Teleport your character to target player safely
+local function teleportToPlayer(targetPlayer)
+    local char = LocalPlayer.Character
+    local targetChar = targetPlayer.Character
+    if char and targetChar then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local targetHrp = targetChar:FindFirstChild("HumanoidRootPart") or targetChar:FindFirstChild("Torso")
+        if hrp and targetHrp then
+            hrp.CFrame = targetHrp.CFrame + Vector3.new(0, 5, 0)
+        end
+    end
+end
+
+-- Main loop: update ESP boxes each frame
+RunService.RenderStepped:Connect(function()
+    local mousePos = Vector2.new(mouse.X, mouse.Y)
+    hoveredPlayer = nil
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local char = player.Character
+            if isValidCharacter(char) then
+                if not ESPs[player] then
+                    createESP(player)
+                end
+
+                local esp = ESPs[player]
+                local hrp = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")
+                local humanoid = char:FindFirstChild("Humanoid")
+
+                if not (hrp and humanoid) then
+                    esp.Box.Visible = false
+                    esp.BoxOutline.Visible = false
+                    esp.HealthBar.Visible = false
+                    esp.NameText.Visible = false
+                    continue
+                end
+
+                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local distance = (Camera.CFrame.Position - hrp.Position).Magnitude
+                    local sizeY = math.clamp(3000 / distance, 20, 120)
+                    local sizeX = sizeY / 1.6
+
+                    -- Position box centered on player
+                    esp.Box.Size = Vector2.new(sizeX, sizeY)
+                    esp.Box.Position = Vector2.new(pos.X - sizeX/2, pos.Y - sizeY/2)
+                    esp.Box.Visible = true
+
+                    esp.BoxOutline.Size = esp.Box.Size + Vector2.new(4, 4)
+                    esp.BoxOutline.Position = esp.Box.Position - Vector2.new(2, 2)
+                    esp.BoxOutline.Visible = true
+
+                    -- Color cycles with rainbow effect per player
+                    local color = rainbowColor(player.UserId)
+                    esp.Box.Color = color
+
+                    -- Hover detection with padding to make it easier to hover small boxes at distance
+                    local hoverPadding = 8
+                    if isMouseOverBox(mousePos, esp.Box.Position, esp.Box.Size, hoverPadding) then
+                        hoveredPlayer = player
+                        esp.Box.Thickness = BOX_THICKNESS_HIGHLIGHT
+                        esp.BoxOutline.Color = BOX_HIGHLIGHT_COLOR
+                    else
+                        esp.Box.Thickness = BOX_THICKNESS_NORMAL
+                        esp.BoxOutline.Color = Color3.new(0, 0, 0)
+                    end
+
+                    -- Name text above box
+                    esp.NameText.Text = player.Name
+                    esp.NameText.Position = Vector2.new(pos.X, pos.Y - sizeY/2 - 18)
+                    esp.NameText.Visible = true
+
+                    -- Health bar on left side
+                    local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                    local barHeight = sizeY * healthPercent
+
+                    esp.HealthBar.From = Vector2.new(esp.Box.Position.X - 8, esp.Box.Position.Y + sizeY)
+                    esp.HealthBar.To = Vector2.new(esp.Box.Position.X - 8, esp.Box.Position.Y + sizeY - barHeight)
+                    esp.HealthBar.Color = Color3.fromHSV(healthPercent * 0.3, 1, 1)
+                    esp.HealthBar.Visible = true
+                else
+                    esp.Box.Visible = false
+                    esp.BoxOutline.Visible = false
+                    esp.HealthBar.Visible = false
+                    esp.NameText.Visible = false
+                end
+            else
+                removeESP(player)
+            end
+        else
+            removeESP(player)
+        end
+    end
+end)
+
+-- When left click and hovering a player box, teleport to them
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and hoveredPlayer then
+        teleportToPlayer(hoveredPlayer)
+    end
+end)
+
+-- Clean up ESP when players leave
+Players.PlayerRemoving:Connect(removeESP)
+
+-- Add ESP when players join and their characters spawn
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        if player ~= LocalPlayer and isValidCharacter(player.Character) then
+            if not ESPs[player] then
+                createESP(player)
+            end
+        end
+    end)
+end)
