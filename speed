@@ -1,0 +1,60 @@
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+local speedMultiplier = 7 -- increase to go faster (try 1.5 to 3)
+local baseWalkSpeed = 16 -- default Roblox walk speed
+
+local enabled = false
+
+-- Toggle speed boost with T key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        enabled = not enabled
+        if enabled then
+            print("Speed boost enabled")
+        else
+            print("Speed boost disabled")
+        end
+    end
+end)
+
+-- Reset on respawn
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+end)
+
+RunService.Heartbeat:Connect(function(deltaTime)
+    if not enabled or not humanoidRootPart then return end
+
+    local moveDir = Vector3.new()
+    local camera = workspace.CurrentCamera
+
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        moveDir = moveDir + camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        moveDir = moveDir - camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        moveDir = moveDir - camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        moveDir = moveDir + camera.CFrame.RightVector
+    end
+
+    moveDir = Vector3.new(moveDir.X, 0, moveDir.Z)
+
+    if moveDir.Magnitude > 0 then
+        moveDir = moveDir.Unit
+        local newPos = humanoidRootPart.Position + moveDir * baseWalkSpeed * speedMultiplier * deltaTime
+        humanoidRootPart.CFrame = CFrame.new(newPos.X, humanoidRootPart.Position.Y, newPos.Z)
+    end
+end)
