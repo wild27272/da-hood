@@ -7,7 +7,7 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-local speedMultiplier = 7 -- increase to go faster (try 1.5 to 3)
+local speedMultiplier = 13 -- increase to go faster (try 1.5 to 3)
 local baseWalkSpeed = 16 -- default Roblox walk speed
 
 local enabled = false
