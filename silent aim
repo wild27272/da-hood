@@ -4,6 +4,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local hitboxSize = Vector3.new(10, 10, 10)
 
+-- Expand hitbox function
 local function expandHitbox(character)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if hrp then
@@ -13,20 +14,7 @@ local function expandHitbox(character)
     end
 end
 
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer and player.Character then
-        expandHitbox(player.Character)
-    end
-end
-
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        if player ~= LocalPlayer then
-            expandHitbox(character)
-        end
-    end)
-end)
-
+-- Create credits popup
 local function createPopup()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "CreditsPopup"
@@ -43,19 +31,40 @@ local function createPopup()
     popup.Text = "silent aim by agent duck xd"
     popup.BorderSizePixel = 0
     popup.Font = Enum.Font.GothamBold
+    popup.BackgroundTransparency = 0.2
     popup.Parent = screenGui
-popup.BackgroundTransparency = 0.2
+
     local tweenIn = TweenService:Create(popup, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Position = UDim2.new(1, -10, 0.8, 0)
     })
     tweenIn:Play()
+
     task.wait(4)
+
     local tweenOut = TweenService:Create(popup, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
         Position = UDim2.new(1, 10, 0.8, 0)
     })
     tweenOut:Play()
-tweenOut.Completed:Connect(function()
+
+    tweenOut.Completed:Connect(function()
         screenGui:Destroy()
     end)
 end
-createPopup()
+
+-- Expand hitboxes and show popup for current players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer and player.Character then
+        expandHitbox(player.Character)
+        createPopup()
+    end
+end
+
+-- Expand hitbox and show popup for new players
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if player ~= LocalPlayer then
+            expandHitbox(character)
+            createPopup()
+        end
+    end)
+end)
